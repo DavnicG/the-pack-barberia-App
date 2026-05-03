@@ -1,86 +1,123 @@
-// App.tsx
-// Punto de entrada de la app.
-// Por ahora muestra la pantalla de inicio directamente.
+// App.js
+// Punto de entrada principal de la aplicación.
+// Aquí configuramos la navegación global — todas las pantallas
+// deben estar registradas en este archivo para poder usarlas.
 
 import { StyleSheet, Text, View, Pressable } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+// NavigationContainer: componente raíz de React Navigation.
+// DEBE envolver toda la app — sin él, la navegación no funciona.
+
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+// createNativeStackNavigator: crea un navegador tipo "pila".
+// Funciona como una torre de cartas — al navegar se apila una pantalla
+// encima de la otra, y al volver atrás se retira la del tope.
+
 import { Colors } from './constants/color';
 import CalendarIcon from './assets/icons/Calendar.svg';
 import LogoIcon from './assets/icons/Logos/the-pack-dorado.svg';
+import LoginScreen from './screens/LoginScreen';
 
+// Creamos el objeto Stack que nos da dos componentes:
+// - Stack.Navigator: contenedor que gestiona el historial de pantallas
+// - Stack.Screen: representa una pantalla individual registrada
+const Stack = createNativeStackNavigator();
 
-export default function App() {
+// HomeScreen es un componente separado dentro del mismo archivo.
+// React Navigation le pasa automáticamente la prop "navigation"
+// a toda pantalla registrada en el Stack — no necesitamos pasarla manualmente.
+function HomeScreen({ navigation }) {
   return (
+    <View style={styles.container}>
+      <View style={styles.content}>
 
-      <View style={styles.container}>
+        {/* Logo de la barbería — SVG vectorial, se puede escalar sin pixelarse */}
+        <LogoIcon width={180} height={170} style={styles.logo} />
 
-        {/* Bloque central de contenido */}
-        <View style={styles.content}>
-
-        {/* Logo de la barbería encima del título */}
-        <LogoIcon
-          width={200}
-          height={180}
-          style={styles.logo}
-        />
-
-        {/* Título con dos colores — "The Pack" blanco, "Barber Studio" dorado */}
-        <Text style={styles.titleWhite}>The Pack{' '}
-          <Text style={styles.titleGold}>Barber{'\n'}Studio</Text>
+        {/* Título con dos estilos de color anidados en el mismo bloque de texto */}
+        <Text style={styles.titleWhite}>
+          The Pack <Text style={styles.titleGold}>Barber{'\n'}Studio</Text>
         </Text>
 
-        {/* Botón principal — Reservar Cita */}
+        {/* Botón principal — navega a la pantalla Login al presionar */}
+        {/* pressed es un estado que React Native pasa automáticamente
+            y nos permite cambiar el estilo cuando el usuario toca el botón */}
         <Pressable
           style={({ pressed }) => [
             styles.primaryButton,
-            // Cuando el usuario toca el botón, se oscurece ligeramente
             pressed && { backgroundColor: Colors.accentDark }
           ]}
+          onPress={() => navigation.navigate('Login')}
         >
+          {/* Ícono SVG — fill controla su color */}
           <CalendarIcon width={20} height={20} fill={Colors.background} />
           <Text style={styles.primaryButtonText}>Reservar Cita</Text>
         </Pressable>
-        
-        {/* Botón secundario — Mis Citas */}
+
+        {/* Botón secundario — también navega a Login por ahora */}
         <Pressable
           style={({ pressed }) => [
             styles.secondaryButton,
             pressed && { borderColor: Colors.accentDark }
           ]}
+          onPress={() => navigation.navigate('Login')}
         >
           <Text style={styles.secondaryButtonText}>Mis Citas</Text>
         </Pressable>
-        
-        </View>
-      </View>
 
+      </View>
+    </View>
+  );
+}
+
+// App es el componente raíz que exportamos.
+// Su única responsabilidad es configurar la navegación global.
+export default function App() {
+  return (
+    // NavigationContainer gestiona el árbol de navegación completo
+    <NavigationContainer>
+      <Stack.Navigator
+        initialRouteName="Home"   // primera pantalla que se muestra al abrir la app
+        screenOptions={{
+          headerShown: false,     // ocultamos la barra de título en todas las pantallas
+          contentStyle: { backgroundColor: Colors.background },   // Cambia la animación a una más suave tipo "fade"
+          animation: 'fade',
+        }}
+      >
+        {/* Cada Stack.Screen registra una pantalla con un nombre único.
+            Ese nombre es el que usamos en navigation.navigate('nombre') */}
+        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="Login" component={LoginScreen} />
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flex: 1,                        // ocupa toda la pantalla
     backgroundColor: Colors.background,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'center',       // centra verticalmente
+    alignItems: 'center',           // centra horizontalmente
     padding: 28,
   },
   content: {
     width: '100%',
-    alignItems: 'center',  // centra todo el contenido horizontalmente
+    alignItems: 'center',
+  },
+  logo: {
+    marginBottom: 24,               // espacio entre logo y título
   },
   titleWhite: {
     color: Colors.text,
     fontSize: 38,
     fontWeight: '700',
-    fontFamily: 'sans-serif',
     textAlign: 'center',
-    lineHeight: 48,
+    lineHeight: 48,                 // altura de cada línea de texto
     marginBottom: 20,
   },
   titleGold: {
-    // Este estilo se aplica solo al texto "Barber Studio"
-    color: Colors.accent,
-    fontFamily: 'sans-serif',
+    color: Colors.accent,           // solo "Barber Studio" lleva el color dorado
     fontSize: 38,
     fontWeight: '700',
   },
@@ -89,9 +126,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 32,
     borderRadius: 10,
-    flexDirection: 'row',   // ícono y texto en la misma fila
+    flexDirection: 'row',           // ícono y texto en la misma fila
     alignItems: 'center',
-    gap: 8,                  // espacio entre ícono y texto
+    gap: 8,                         // espacio entre ícono y texto
     marginBottom: 14,
     width: '100%',
     justifyContent: 'center',
@@ -108,22 +145,14 @@ const styles = StyleSheet.create({
     width: '100%',
     justifyContent: 'center',
   },
-  buttonIcon: {
-    fontSize: 16,
-  },
   primaryButtonText: {
-    color: Colors.background,
-    fontFamily: 'sans-serif',
-    fontSize: 15,
+    color: Colors.background,       // texto oscuro sobre fondo dorado
+    fontSize: 16,
     fontWeight: '700',
   },
   secondaryButtonText: {
-    color: Colors.accent,
-    fontFamily: 'sans-serif',
-    fontSize: 15,
+    color: Colors.accent,           // texto dorado sobre fondo transparente
+    fontSize: 16,
     fontWeight: '600',
-  },
-  logo: {
-  marginBottom: 24,  // espacio entre el logo y el título
   },
 });
