@@ -1,138 +1,290 @@
 // App.js
 // Punto de entrada principal de la aplicación.
-// Aquí configuramos la navegación global — todas las pantallas
-// deben estar registradas en este archivo para poder usarlas.
+// Aquí centralizamos el estado global de autenticación:
+// - verificamos si existe una sesión guardada al abrir la app
+// - guardamos en memoria si el usuario está autenticado
+// - actualizamos Home inmediatamente después del login sin reiniciar la app
 
-import { StyleSheet, Text, View, Pressable } from 'react-native';
+import { StyleSheet, Text, View, Pressable, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
-// NavigationContainer: componente raíz de React Navigation.
-// DEBE envolver toda la app — sin él, la navegación no funciona.
-
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-// createNativeStackNavigator: crea un navegador tipo "pila".
-// Funciona como una torre de cartas — al navegar se apila una pantalla
-// encima de la otra, y al volver atrás se retira la del tope.
+import { useEffect, useState } from 'react';
 
 import { Colors } from './constants/color';
 import CalendarIcon from './assets/icons/Calendar.svg';
 import LogoIcon from './assets/icons/Logos/the-pack-dorado.svg';
 import LoginScreen from './screens/LoginScreen';
 
-// Creamos el objeto Stack que nos da dos componentes:
-// - Stack.Navigator: contenedor que gestiona el historial de pantallas
-// - Stack.Screen: representa una pantalla individual registrada
+import {
+  haySession,
+  obtenerUsuario,
+  borrarToken,
+} from './services/auth';
+
+// Creamos el Stack Navigator.
+// Este objeto maneja las pantallas como una pila.
 const Stack = createNativeStackNavigator();
 
-// HomeScreen es un componente separado dentro del mismo archivo.
-// React Navigation le pasa automáticamente la prop "navigation"
-// a toda pantalla registrada en el Stack — no necesitamos pasarla manualmente.
-function HomeScreen({ navigation }) {
+
+// HomeScreen: pantalla principal de la app.
+// Recibe props extra desde App para poder reaccionar al estado de sesión.
+function HomeScreen({ navigation, autenticado, usuario, onLogout }) {
+  // Elegimos qué dato mostrar en el saludo.
+  // Si existe nombre, lo usamos; si no, mostramos el email.
+  const nombreMostrado = usuario?.nombre || usuario?.email || 'usuario';
+
+  // Acción del botón principal.
+  // Si el usuario ya inició sesión, más adelante esto llevará
+  // a la pantalla real de reservas.
+  // Si no inició sesión, lo llevamos a Login.
+  const handlePrimaryAction = () => {
+    if (autenticado) {
+      navigation.navigate('Home'); // temporal
+    } else {
+      navigation.navigate('Login');
+    }
+  };
+
+  // Acción del botón secundario.
+  // Si hay sesión, luego llevará a Mis Citas.
+  // Si no hay sesión, por ahora puede llevar a Login.
+  const handleSecondaryAction = () => {
+    if (autenticado) {
+      navigation.navigate('Home'); // temporal
+    } else {
+      navigation.navigate('Login');
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-
-        {/* Logo de la barbería — SVG vectorial, se puede escalar sin pixelarse */}
+        {/* Logo principal de la barbería */}
         <LogoIcon width={180} height={170} style={styles.logo} />
 
-        {/* Título con dos estilos de color anidados en el mismo bloque de texto */}
+        {/* Título principal */}
         <Text style={styles.titleWhite}>
           The Pack <Text style={styles.titleGold}>Barber{'\n'}Studio</Text>
         </Text>
 
-        {/* Botón principal — navega a la pantalla Login al presionar */}
-        {/* pressed es un estado que React Native pasa automáticamente
-            y nos permite cambiar el estilo cuando el usuario toca el botón */}
+        {/* Saludo personalizado solo si hay sesión */}
+        {autenticado && (
+          <Text style={styles.greetingText}>
+            Hola, {nombreMostrado}
+          </Text>
+        )}
+
+        {/* Botón principal */}
         <Pressable
           style={({ pressed }) => [
             styles.primaryButton,
-            pressed && { backgroundColor: Colors.accentDark }
+            pressed && { backgroundColor: Colors.accentDark },
           ]}
-          onPress={() => navigation.navigate('Login')}
+          onPress={handlePrimaryAction}
         >
-          {/* Ícono SVG — fill controla su color */}
           <CalendarIcon width={20} height={20} fill={Colors.background} />
-          <Text style={styles.primaryButtonText}>Reservar Cita</Text>
+          <Text style={styles.primaryButtonText}>
+            {autenticado ? 'Reservar Cita' : 'Entrar'}
+          </Text>
         </Pressable>
 
-        {/* Botón secundario — también navega a Login por ahora */}
+        {/* Botón secundario */}
         <Pressable
           style={({ pressed }) => [
             styles.secondaryButton,
-            pressed && { borderColor: Colors.accentDark }
+            pressed && { borderColor: Colors.accentDark },
           ]}
-          onPress={() => navigation.navigate('Login')}
+          onPress={handleSecondaryAction}
         >
-          <Text style={styles.secondaryButtonText}>Mis Citas</Text>
+          <Text style={styles.secondaryButtonText}>
+            {autenticado ? 'Mis Citas' : 'Ver Servicios'}
+          </Text>
         </Pressable>
 
+        {/* Botón de cerrar sesión — solo visible si existe sesión */}
+        {autenticado && (
+          <Pressable
+            style={({ pressed }) => [
+              styles.logoutButton,
+              pressed && { opacity: 0.75 },
+            ]}
+            onPress={onLogout}
+          >
+            <Text style={styles.logoutButtonText}>Cerrar Sesión</Text>
+          </Pressable>
+        )}
       </View>
     </View>
   );
 }
 
-// App es el componente raíz que exportamos.
-// Su única responsabilidad es configurar la navegación global.
+
+// Componente raíz de la aplicación.
 export default function App() {
+  // cargando controla si todavía estamos revisando el almacenamiento local
+  const [cargando, setCargando] = useState(true);
+
+  // autenticado indica si hay sesión activa en memoria
+  const [autenticado, setAutenticado] = useState(false);
+
+  // usuario guarda los datos del usuario autenticado
+  const [usuario, setUsuario] = useState(null);
+
+  useEffect(() => {
+    // Esta función se ejecuta una sola vez al abrir la app.
+    // Lee el token guardado y, si existe, carga también el usuario.
+    const verificarSesion = async () => {
+      try {
+        const existeSesion = await haySession();
+        setAutenticado(existeSesion);
+
+        if (existeSesion) {
+          const usuarioGuardado = await obtenerUsuario();
+          setUsuario(usuarioGuardado);
+        } else {
+          setUsuario(null);
+        }
+      } catch (error) {
+        console.log('Error verificando la sesión:', error);
+        setAutenticado(false);
+        setUsuario(null);
+      } finally {
+        setCargando(false);
+      }
+    };
+
+    verificarSesion();
+  }, []);
+
+  // Esta función se ejecuta inmediatamente después del login exitoso.
+  // LoginScreen nos enviará los datos del usuario ya autenticado.
+  // Aquí actualizamos el estado global para que Home se re-renderice al instante.
+  const handleLoginSuccess = (userData) => {
+    setAutenticado(true);
+    setUsuario(userData);
+  };
+
+  // Esta función cierra sesión:
+  // 1. borra el token local
+  // 2. limpia el usuario en memoria
+  // 3. hace que Home cambie automáticamente al estado no autenticado
+  const handleLogout = async () => {
+    try {
+      await borrarToken();
+      setAutenticado(false);
+      setUsuario(null);
+    } catch (error) {
+      console.log('Error cerrando sesión:', error);
+    }
+  };
+
+  // Mientras se revisa el almacenamiento local, mostramos carga.
+  // Esto evita renders prematuros con datos incompletos.
+  if (cargando) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.accent} />
+      </View>
+    );
+  }
+
   return (
-    // NavigationContainer gestiona el árbol de navegación completo
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Home"   // primera pantalla que se muestra al abrir la app
+        initialRouteName="Home"
         screenOptions={{
-          headerShown: false,     // ocultamos la barra de título en todas las pantallas
-          contentStyle: { backgroundColor: Colors.background },   // Cambia la animación a una más suave tipo "fade"
+          headerShown: false,
+          contentStyle: { backgroundColor: Colors.background },
           animation: 'fade',
         }}
       >
-        {/* Cada Stack.Screen registra una pantalla con un nombre único.
-            Ese nombre es el que usamos en navigation.navigate('nombre') */}
-        <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen name="Login" component={LoginScreen} />
+        {/* Home recibe props adicionales desde App */}
+        <Stack.Screen name="Home">
+          {(props) => (
+            <HomeScreen
+              {...props}
+              autenticado={autenticado}
+              usuario={usuario}
+              onLogout={handleLogout}
+            />
+          )}
+        </Stack.Screen>
+
+        {/* Login también recibe la función que avisa a App
+            cuando el login fue exitoso */}
+        <Stack.Screen name="Login">
+          {(props) => (
+            <LoginScreen
+              {...props}
+              onLoginSuccess={handleLoginSuccess}
+            />
+          )}
+        </Stack.Screen>
       </Stack.Navigator>
     </NavigationContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,                        // ocupa toda la pantalla
+  loadingContainer: {
+    flex: 1,
     backgroundColor: Colors.background,
-    justifyContent: 'center',       // centra verticalmente
-    alignItems: 'center',           // centra horizontalmente
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 28,
   },
+
   content: {
     width: '100%',
     alignItems: 'center',
   },
+
   logo: {
-    marginBottom: 24,               // espacio entre logo y título
+    marginBottom: 24,
   },
+
   titleWhite: {
     color: Colors.text,
     fontSize: 38,
     fontWeight: '700',
     textAlign: 'center',
-    lineHeight: 48,                 // altura de cada línea de texto
-    marginBottom: 20,
+    lineHeight: 48,
+    marginBottom: 12,
   },
+
   titleGold: {
-    color: Colors.accent,           // solo "Barber Studio" lleva el color dorado
+    color: Colors.accent,
     fontSize: 38,
     fontWeight: '700',
   },
+
+  greetingText: {
+    color: Colors.textMuted,
+    fontSize: 16,
+    marginBottom: 28,
+    textAlign: 'center',
+  },
+
   primaryButton: {
     backgroundColor: Colors.accent,
     paddingVertical: 14,
     paddingHorizontal: 32,
     borderRadius: 10,
-    flexDirection: 'row',           // ícono y texto en la misma fila
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,                         // espacio entre ícono y texto
+    gap: 8,
     marginBottom: 14,
     width: '100%',
     justifyContent: 'center',
   },
+
   secondaryButton: {
     borderWidth: 1,
     borderColor: Colors.accent,
@@ -145,13 +297,27 @@ const styles = StyleSheet.create({
     width: '100%',
     justifyContent: 'center',
   },
+
+  logoutButton: {
+    marginTop: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+  },
+
+  logoutButtonText: {
+    color: Colors.error,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+
   primaryButtonText: {
-    color: Colors.background,       // texto oscuro sobre fondo dorado
+    color: Colors.background,
     fontSize: 16,
     fontWeight: '700',
   },
+
   secondaryButtonText: {
-    color: Colors.accent,           // texto dorado sobre fondo transparente
+    color: Colors.accent,
     fontSize: 16,
     fontWeight: '600',
   },
