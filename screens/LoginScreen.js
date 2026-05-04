@@ -4,17 +4,15 @@
 // La autenticación real con Django la conectaremos más adelante.
 
 
+// screens/LoginScreen.js
 import { useState } from 'react';
-// useState: hook de React que nos permite guardar y actualizar valores.
-// Cada vez que el valor cambia, el componente se re-renderiza.
 import {
   StyleSheet, Text, View, Pressable,
-  TextInput, KeyboardAvoidingView, Platform, ScrollView
+  TextInput, KeyboardAvoidingView, Platform,
+  ScrollView, ActivityIndicator
 } from 'react-native';
-// KeyboardAvoidingView: empuja el contenido hacia arriba cuando
-// aparece el teclado, evitando que tape los campos del formulario.
-// Platform: nos dice si estamos en Android o iOS para ajustar comportamientos.
 import { Colors } from '../constants/color';
+import { loginUser } from '../services/api';
 
 // navigation es una prop que React Navigation inyecta automáticamente
 // en todas las pantallas registradas en el Stack
@@ -27,15 +25,41 @@ export default function LoginScreen({ navigation }) {
     // Estado para mostrar u ocultar errores de validación
     const [error, setError] = useState('');
 
+    // loading muestra un spinner mientras espera la respuesta del servidor
+    const [loading, setLoading] = useState(false);    
+
     // Función que se ejecuta al presionar "Iniciar Sesión"
-    const handleLogin = () => {
-        // Validación básica — verificamos que los campos no estén vacíos
-        if(!email || !password){
-            setError('Por favor completa todos los campos.');
-            return; // detenemos la ejecución si hay error
-        }
-        setError('');   // Limpiamos el error si todo está bien
-        alert('Conectando con el servidor...');     // Por ahora solo mostramos un mensaje — aquí irá la llamada a Django
+    const handleLogin = async () => {
+        console.log('🔵 Botón presionado');
+       if(!email || !password){
+        setError('Por favor completa todos los campos.');
+        return;
+       }
+       setError('');
+       console.log('🟡 Llamando a Django...')
+       setLoading(true);// activamos el spinner
+
+       try{
+            // Llamamos al backend Django
+            const data = await loginUser(email, password);
+            console.log('✅ Respuesta:', data);
+            // Si llegamos aquí, el login fue exitoso
+            // data.token contiene el token que Django nos devolvió
+            // Verificamos si Django devolvió error
+            if (data.error) {
+            setError(data.error); // muestra "Credenciales incorrectas"
+            return;
+            }
+            // Solo llegamos aquí si hay token
+            console.log('🎫 Token:', data.token);
+            setError('✅ Login exitoso');
+
+            } catch (err) {
+                console.log('❌ Error:', err.message);
+                setError('No se pudo conectar al servidor.');
+            } finally {
+                setLoading(false);
+            }
     };
 
     return (
