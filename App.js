@@ -15,6 +15,7 @@ import CalendarIcon from './assets/icons/Calendar.svg';
 import LogoIcon from './assets/icons/Logos/the-pack-dorado.svg';
 import LoginScreen from './screens/LoginScreen';
 import MisCitasScreen from './screens/MisCitasScreen';
+import ReservarCitaScreen from './screens/ReservarCitaScreen';
 
 import {
   haySession,
@@ -40,7 +41,7 @@ function HomeScreen({ navigation, autenticado, usuario, onLogout }) {
   // Si no inició sesión, lo llevamos a Login.
   const handlePrimaryAction = () => {
     if (autenticado) {
-      navigation.navigate('Home'); // temporal
+      navigation.navigate('ReservarCita'); // temporal
     } else {
       navigation.navigate('Login');
     }
@@ -223,6 +224,18 @@ export default function App() {
         </Stack.Screen>
         {/* Muestra las citas del cliente */}
         <Stack.Screen name="MisCitas" component={MisCitasScreen} />
+        {/* Pantalla para reservar una nueva cita */}
+        <Stack.Screen
+          name="ReservarCita"
+          component={ReservarCitaScreen}
+          options={{
+            headerShown: true,
+            title: 'Reservar Cita',
+            headerStyle: { backgroundColor: Colors.background },
+            headerTintColor: Colors.accent,
+            headerTitleStyle: { fontWeight: 'bold' },
+          }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
