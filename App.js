@@ -14,6 +14,7 @@ import { Colors } from './constants/color';
 import CalendarIcon from './assets/icons/Calendar.svg';
 import LogoIcon from './assets/icons/Logos/the-pack-dorado.svg';
 import LoginScreen from './screens/LoginScreen';
+import MisCitasScreen from './screens/MisCitasScreen';
 
 import {
   haySession,
@@ -50,7 +51,7 @@ function HomeScreen({ navigation, autenticado, usuario, onLogout }) {
   // Si no hay sesión, por ahora puede llevar a Login.
   const handleSecondaryAction = () => {
     if (autenticado) {
-      navigation.navigate('Home'); // temporal
+      navigation.navigate('MisCitas'); 
     } else {
       navigation.navigate('Login');
     }
@@ -220,6 +221,8 @@ export default function App() {
             />
           )}
         </Stack.Screen>
+        {/* Muestra las citas del cliente */}
+        <Stack.Screen name="MisCitas" component={MisCitasScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
