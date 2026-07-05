@@ -5,13 +5,14 @@
 
 import {
   View, Text, StyleSheet, FlatList,
-  ActivityIndicator, Pressable, RefreshControl
+  ActivityIndicator, Pressable, RefreshControl, Alert
 } from 'react-native';
 import { useEffect, useState, useCallback } from 'react';
 
 import { Colors } from '../constants/color';
 import { obtenerToken } from '../services/auth';
-import { obtenerMisTurnos } from '../services/api';
+import { obtenerMisTurnos, cancelarTurno } from '../services/api';
+
 
 export default function MisCitasScreen({ navigation }) {
 
@@ -72,16 +73,58 @@ export default function MisCitasScreen({ navigation }) {
     cargarTurnos();
   }, [cargarTurnos]);
 
+  //Componenete de cancelar turnos
+  const handleCancelarTurno = (turnoId) => {
+    Alert.alert(
+      'Cancelar cita',
+      '¿Seguro que deseas cancelar esta cita?',
+      [
+        {
+          text: 'No',
+          style: 'cancel',
+        },
+        {
+          text: 'Sí, cancelar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const token = await obtenerToken();
+
+              const { status, data } = await cancelarTurno(token, turnoId);
+
+              if (status === 200) {
+                Alert.alert('Éxito', 'La cita fue cancelada correctamente.');
+
+                // Opción 1: volver a consultar al backend
+                await cargarTurnos();
+
+                // Opción 2: actualizar localmente el estado
+                // setTurnos((prev) =>
+                //   prev.map((t) =>
+                //     t.id === turnoId ? { ...t, estado: 'cancelado' } : t
+                //   )
+                // );
+              } else {
+                Alert.alert('Error', data.error || 'No se pudo cancelar la cita.');
+              }
+            } catch (error) {
+              Alert.alert('Error', 'Hubo un problema de conexión.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // ── Componente de cada tarjeta de turno ─────────────────────────
   // Recibe un turno y lo renderiza como una tarjeta visual
-  const TarjetaTurno = ({ turno }) => {
+  const TarjetaTurno = ({ turno, onCancelar }) => {
 
-    // Definimos el color del estado para que sea visual e intuitivo
     const coloresEstado = {
-      pendiente:  Colors.warning  || '#F59E0B',
-      confirmado: Colors.success  || '#10B981',
+      pendiente:  Colors.warning || '#F59E0B',
+      confirmado: Colors.success || '#10B981',
       completado: Colors.textMuted,
-      cancelado:  Colors.error    || '#EF4444',
+      cancelado:  Colors.error || '#EF4444',
     };
 
     const colorEstado = coloresEstado[turno.estado] || Colors.textMuted;
@@ -120,6 +163,20 @@ export default function MisCitasScreen({ navigation }) {
             </Text>
           </View>
         </View>
+
+        {/* Botón cancelar */}
+        {turno.estado !== 'cancelado' && turno.estado !== 'completado' && (
+          <Pressable
+            style={({ pressed }) => [
+              styles.botonCancelar,
+              pressed && { opacity: 0.8 },
+            ]}
+            onPress={() => onCancelar(turno.id)}
+          >
+            <Text style={styles.botonCancelarTexto}>Cancelar cita</Text>
+          </Pressable>
+        )}
+
       </View>
     );
   };
@@ -162,7 +219,12 @@ export default function MisCitasScreen({ navigation }) {
       <FlatList
         data={turnos}
         keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => <TarjetaTurno turno={item} />}
+        renderItem={({ item }) => (
+          <TarjetaTurno
+            turno={item}
+            onCancelar={handleCancelarTurno}
+          />
+        )}
         contentContainerStyle={[
           styles.lista,
           // Si no hay turnos, centramos el mensaje vacío
@@ -345,5 +407,18 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontSize: 14,
     textAlign: 'center',
+  },
+  botonCancelar: {
+  marginTop: 12,
+  borderWidth: 1,
+  borderColor: '#B00020',
+  paddingVertical: 10,
+  borderRadius: 8,
+  alignItems: 'center',
+  },
+
+  botonCancelarTexto: {
+    color: '#B00020',
+    fontWeight: '700',
   },
 });

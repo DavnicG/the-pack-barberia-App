@@ -78,3 +78,20 @@ export const crearTurno = async (token, datos) => {
   });
   return { status: response.status, data: await response.json() };
 };
+
+// Cancela un turno cambiando su estado a "cancelado"
+// No elimina el registro, solo actualiza su estado en el backend
+export const cancelarTurno = async (token, turnoId) => {
+  const response = await fetch(`${BASE_URL}/turnos/api/cancelar/${turnoId}/`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Token ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  return {
+    status: response.status,
+    data: await response.json(),
+  };
+};
